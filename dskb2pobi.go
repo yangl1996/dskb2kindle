@@ -7,6 +7,7 @@ import (
     "time"
     "golang.org/x/net/html"
     "strings"
+    "flag"
 )
 
 type Section struct {
@@ -16,8 +17,27 @@ type Section struct {
 
 func main() {
     log.Println("Process started")
+    dateArg := flag.String("date", "today", "the date of the issue to be fetched, in format YYYY-MM-DD, MM-DD, or DD")
+    flag.Parse()
     hangzhou := time.FixedZone("Hangzhou Time", int((8 * time.Hour).Seconds()))
-    hztime := time.Now().In(hangzhou)
+    var hztime time.Time
+    if *dateArg == "today" {
+        hztime = time.Now().In(hangzhou)
+    } else {
+        t1, err1 := time.ParseInLocation("2006-01-02", *dateArg, hangzhou)
+        t2, err2 := time.ParseInLocation("01-02", *dateArg, hangzhou)
+        t3, err3 := time.ParseInLocation("02", *dateArg, hangzhou)
+        switch {
+        case err1 == nil:
+            hztime = time.Date(t1.Year(), t1.Month(), t1.Day(), 0, 0, 0, 0, hangzhou)
+        case err2 == nil:
+            hztime = time.Date(time.Now().In(hangzhou).Year(), t2.Month(), t2.Day(), 0, 0, 0, 0, hangzhou)
+        case err3 == nil:
+            hztime = time.Date(time.Now().In(hangzhou).Year(), time.Now().In(hangzhou).Month(), t3.Day(), 0, 0, 0, 0, hangzhou)
+        default:
+            log.Fatalln("Error parsing date option")
+        }
+    }
     log.Printf("Retrieving Dushikuaibao issue for %s\n", hztime.Format("Jan 2 2006"))
     dskbURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/article_list_%s.html", hztime.Format("2006/01/02"), hztime.Format("20060102"))
     dskbBaseURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/", hztime.Format("2006/01/02"))
