@@ -1,6 +1,7 @@
 package main
 
-const mobiArticle string = `<!DOCTYPE html>
+const mobiArticle string = `<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
 <html lang="zh">
   <head>
     <meta charset="utf-8">
@@ -22,7 +23,8 @@ const mobiArticle string = `<!DOCTYPE html>
 </html>
 `
 
-const mobiContents string = `<!DOCTYPE html>
+const mobiContents string = `<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE html>
 <html lang="zh">
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
@@ -129,7 +131,8 @@ const mobiOpf string = `<?xml version='1.0' encoding='utf-8'?>
   </guide>
 </package>`
 
-var mobiSection string = `<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh">
+var mobiSection string = `<?xml version="1.0" encoding="UTF-8" ?>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh">
   <head>
     <meta content="http://www.w3.org/1999/xhtml; charset=utf-8" http-equiv="Content-Type"/>
     <title>{{.Title}}</title>
