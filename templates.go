@@ -45,38 +45,36 @@ const mobiContents string = `<!DOCTYPE html>
 
 const mobiNcx string = `<?xml version='1.0' encoding='utf-8'?>
 <!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
-<ncx xmlns:mbp="http://mobipocket.com/ns/mbp" xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="en-US">
+<ncx xmlns:mbp="http://mobipocket.com/ns/mbp" xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="zh-CN">
   <head>
-    <meta content="{{doc_uuid}}" name="dtb:uid"/>
+    <meta content="{{.Uuid}}" name="dtb:uid"/>
     <meta content="2" name="dtb:depth"/>
     <meta content="0" name="dtb:totalPageCount"/>
     <meta content="0" name="dtb:maxPageNumber"/>
   </head>
   <docTitle>
-    <text>{{title}}</text>
+    <text>{{.Title}}</text>
   </docTitle>
   <docAuthor>
-    <text>{{author}}</text>
+    <text>{{.Author}}</text>
   </docAuthor>
   <navMap>
     <navPoint playOrder="1" class="periodical" id="periodical">
-      <mbp:meta-img src="{{masthead}}" name="mastheadImage"/>
-      <navLabel><text>Table of Contents</text></navLabel>
+      <mbp:meta-img src="{{.Masthead}}" name="mastheadImage"/>
+      <navLabel><text>目录</text></navLabel>
       <content src="contents.html"/>
-      {{#sections}}
-      <navPoint playOrder="{{playorder}}" class="section" id="{{idref}}">
-        <navLabel><text>{{title}}</text></navLabel>
-        <content src="{{href}}"/>
-        {{#articles}}
-        <navPoint playOrder="{{playorder}}" class="article" id="{{idref}}">
-          <navLabel><text>{{short_title}}</text></navLabel>
-          <content src="{{href}}"/>
-          <mbp:meta name="description">{{description}}</mbp:meta>
-          <mbp:meta name="author">{{author}}</mbp:meta>
+      {{range .Manifest.Sections}}
+      <navPoint playOrder="{{.Self.Playorder}}" class="section" id="{{.Self.Idref}}">
+        <navLabel><text>{{.Self.Title}}</text></navLabel>
+        <content src="{{.Self.Path}}"/>
+        {{range .Articles}}
+        <navPoint playOrder="{{.Playorder}}" class="article" id="{{.Idref}}">
+          <navLabel><text>{{.Title}}</text></navLabel>
+          <content src="{{.Path}}"/>
         </navPoint>
-        {{/articles}}
+        {{end}}
       </navPoint>
-      {{/sections}}
+      {{end}}
     </navPoint>
   </navMap>
 </ncx>`
@@ -105,7 +103,7 @@ const mobiOpf string = `<?xml version='1.0' encoding='utf-8'?>
     <item href="contents.html" media-type="application/xhtml+xml" id="contents"/>
     <item href="nav-contents.ncx" media-type="application/x-dtbncx+xml" id="nav-contents"/>
     <item href="{{cover}}" media-type="{{cover_mimetype}}" id="cover-image"/>
-    <item href="{{masthead}}" media-type="image/gif" id="masthead"/>
+    <item href="{{masthead}}" media-type="image/png" id="masthead"/>
     {{#manifest_items}}
     <item href="{{href}}" media-type="{{media}}" id="{{idref}}"/>
     {{/manifest_items}}

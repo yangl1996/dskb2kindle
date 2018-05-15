@@ -12,7 +12,7 @@ import (
     "os"
     "io"
     "path/filepath"
-    "html/template"
+    "text/template"
 )
 
 type Section struct {
@@ -38,6 +38,8 @@ type Token struct {
 type FileEntry struct {
     Path string
     Title string
+    Playorder string
+    Idref string
 }
 
 type Manifest struct {
@@ -48,6 +50,15 @@ type Manifest struct {
 type ManifestSection struct {
     Self FileEntry
     Articles []FileEntry
+}
+
+type BookMetadata struct {
+    Uuid string
+    Title string
+    Author string
+    Masthead string
+    Manifest Manifest
+
 }
 
 func main() {
@@ -93,6 +104,7 @@ func main() {
     dskbURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/article_list_%s.html", hztime.Format("2006/01/02"), hztime.Format("20060102"))
     dskbFrontPageURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/page_list_%s.html", hztime.Format("2006/01/02"), hztime.Format("20060102"))
     dskbBaseURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/", hztime.Format("2006/01/02"))
+    dskbMastheadURL := "http://hzdaily.hangzhou.com.cn/img/logo/dskb2.png"
 
     /* get and parse table of content */
     actionFunc, textActFunc, tableOfContentResultsRetriever := tableOfContentParser(dskbBaseURL)
@@ -121,14 +133,33 @@ func main() {
     thumbnailFile.Close()
     resp.Body.Close()
 
+    /* download masthead */
+    mastheadPath := filepath.Join(workspacePath, "masthead.png")
+    resp, err = http.Get(dskbMastheadURL)
+    if err != nil {
+        log.Fatalln("Error downloading masthead")
+    }
+    mastheadFile, err := os.Create(mastheadPath)
+    if err != nil {
+        log.Fatalln("Error creating masthead file")
+    }
+    _, err = io.Copy(mastheadFile, resp.Body)
+    if err != nil {
+        log.Fatalln("Error writing to masthead file")
+    }
+    mastheadFile.Close()
+    resp.Body.Close()
 
     /* create templates */
     articleTemplate := template.Must(template.New("article").Parse(mobiArticle))
     sectionTemplate := template.Must(template.New("section").Parse(mobiSection))
     contentsTemplate := template.Must(template.New("contents").Parse(mobiContents))
+    ncxTemplate := template.Must(template.New("ncx").Parse(mobiNcx))
 
     /* prepare manifest list */
     var manifest Manifest
+    getNextPlayOrder := getIncreasingInt(2)
+    getNextIdRef := getIncreasingInt(1)
 
     /* get and parse each article, first go through each section */
     for sectionIdx, section := range tableOfContent {
@@ -146,7 +177,7 @@ func main() {
         if err != nil {
             log.Fatalln("Error applying template to section")
         }
-        manifest.Sections = append(manifest.Sections, ManifestSection{FileEntry{filepath.Join(section.Path, "section.html"), section.Title}, []FileEntry{}})
+        manifest.Sections = append(manifest.Sections, ManifestSection{FileEntry{filepath.Join(section.Path, "section.html"), section.Title, getNextPlayOrder(), getNextIdRef()}, []FileEntry{}})
         for articleIdx, articleURL := range section.Articles {
             elementAct, textAct, articleResultsRetriever := articleParser()
             parseURL(articleURL, elementAct, textAct)
@@ -170,7 +201,7 @@ func main() {
                     imageFile.Close()
                     resp.Body.Close()
                     token.Image = imagePath
-                    manifest.Images = append(manifest.Images, FileEntry{imagePath, ""})
+                    manifest.Images = append(manifest.Images, FileEntry{imagePath, "", "", getNextIdRef()})
                 }
             }
             htmlFile, err := os.Create(article.Path)
@@ -182,9 +213,10 @@ func main() {
             if err != nil {
                 log.Fatalln("Error applying template to article")
             }
-            manifest.Sections[len(manifest.Sections)-1].Articles = append(manifest.Sections[len(manifest.Sections)-1].Articles, FileEntry{article.Path, article.H1})
+            manifest.Sections[len(manifest.Sections)-1].Articles = append(manifest.Sections[len(manifest.Sections)-1].Articles, FileEntry{article.Path, article.H1, getNextPlayOrder(), getNextIdRef()})
         }
     }
+
     contentsFile, err := os.Create(filepath.Join(workspacePath, "contents.html"))
     if err != nil {
         log.Fatalln("Error creating contents file")
@@ -193,6 +225,24 @@ func main() {
     contentsFile.Close()
     if err != nil {
         log.Fatalln("Error applying template to table of contents")
+    }
+
+    /* prepare metadata */
+    var metadata BookMetadata
+    metadata.Manifest = manifest
+    metadata.Uuid = strings.Join([]string{"dushikuaibao.12345", hztime.Format("2006-01-02")}, "")
+    metadata.Title = strings.Join([]string{"都市快报", hztime.Format("2006-01-02")}, " ")
+    metadata.Author = "杭州日报报业集团"
+    metadata.Masthead = mastheadPath
+
+    ncxFile, err := os.Create(filepath.Join(workspacePath, "nav-contents.ncx"))
+    if err != nil {
+        log.Fatalln("Error creating NCX file")
+    }
+    err = ncxTemplate.Execute(ncxFile, metadata)
+    ncxFile.Close()
+    if err != nil {
+        log.Fatalln("Error applying template to NCX")
     }
 }
 
@@ -359,5 +409,15 @@ func articleParser() (func(*html.Node), func(*html.Node), func() Article) {
         return article
     }
     return processElement, processText, getResults
+}
+
+func getIncreasingInt(start int) func() string {
+    current := start - 1
+    getNext := func () string {
+        current += 1
+        nextString := strconv.Itoa(current)
+        return nextString
+    }
+    return getNext
 }
 
