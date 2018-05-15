@@ -16,6 +16,7 @@ type Section struct {
 }
 
 func main() {
+    /* parse command line arguments */
     dateArg := flag.String("date", "today", "the date of the issue to be fetched, in format YYYY-MM-DD, MM-DD, or DD")
     flag.Parse()
     log.Println("Process started")
@@ -39,17 +40,13 @@ func main() {
         }
     }
     log.Printf("Retrieving Dushikuaibao issue for %s\n", hztime.Format("Jan 2 2006"))
+
+    /* format URLs */
     dskbURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/article_list_%s.html", hztime.Format("2006/01/02"), hztime.Format("20060102"))
     dskbFrontPageURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/page_list_%s.html", hztime.Format("2006/01/02"), hztime.Format("20060102"))
     dskbBaseURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/", hztime.Format("2006/01/02"))
-    resp := getURL(dskbURL)
-    doc, err := html.Parse(resp.Body)
-    if err != nil {
-        resp.Body.Close()
-        log.Fatalln("Error parsing HTML")
-    }
-    resp.Body.Close()
 
+    /* get and parse table of content */
     var tableOfContent []Section
     parsingState := 0
     var processTree func(*html.Node)
@@ -80,16 +77,10 @@ func main() {
             tableOfContent[len(tableOfContent)-1].Articles = append(tableOfContent[len(tableOfContent)-1].Articles, strings.Join([]string{dskbBaseURL, n.Attr[0].Val}, ""))
         }
     }
-    processHTML(doc, processTree)
+    parseURL(dskbURL, processTree)
     log.Printf("Found %d sections", len(tableOfContent))
 
-    resp = getURL(dskbFrontPageURL)
-    doc, err = html.Parse(resp.Body)
-    if err != nil {
-        resp.Body.Close()
-        log.Fatalln("Error parsing HTML")
-    }
-    resp.Body.Close()
+    /* get and parse the thumbnail of the frontpage */
     var frontPageImageURL string
     parsingState = 0
     var processFrontPage func(*html.Node)
@@ -116,31 +107,37 @@ func main() {
             }
         }
     }
-    processHTML(doc, processFrontPage)
+    parseURL(dskbFrontPageURL, processFrontPage)
     if parsingState != 2 {
         log.Fatalln("Error parsing front page thumbnail URL")
     }
+
     fmt.Println(frontPageImageURL)
     fmt.Println(tableOfContent)
 }
 
-func getURL (url string) *http.Response {
+func parseURL(url string, act func(*html.Node)) {
     resp, err := http.Get(url)
     if err != nil {
         log.Fatalln("Error communicating with Dushikuaibao server")
-        return nil
     }
-    return resp
-}
-
-func processHTML (n *html.Node, act func(*html.Node)) {
-    switch n.Type {
-    case html.ErrorNode:
-        log.Fatalln("Error parsing DOM node")
-    case html.ElementNode:
-        act(n)
+    doc, err := html.Parse(resp.Body)
+    if err != nil {
+        resp.Body.Close()
+        log.Fatalln("Error parsing HTML")
     }
-    for c := n.FirstChild; c != nil; c = c.NextSibling {
-        processHTML(c, act)
+    resp.Body.Close()
+    var processHTML func (*html.Node, func(*html.Node))
+    processHTML = func (n *html.Node, act func(*html.Node)) {
+        switch n.Type {
+        case html.ErrorNode:
+            log.Fatalln("Error parsing DOM node")
+        case html.ElementNode:
+            act(n)
+        }
+        for c := n.FirstChild; c != nil; c = c.NextSibling {
+            processHTML(c, act)
+        }
     }
+    processHTML(doc, act)
 }
