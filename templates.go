@@ -1,5 +1,17 @@
 package main
 
+var mobiArticle string = `<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="utf-8">
+    <title>{{}}</title>
+  </head>
+  <body>
+    <!-- page content -->
+  </body>
+</html>
+`
+
 var mobiContents string = `<html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>

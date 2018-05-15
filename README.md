@@ -16,4 +16,4 @@ Running the tool with `-h` lists all available options. Enjoy!
 
 ## Disclaimer
 
-Refer to the [MIT License](https://github.com/yangl1996/dskb2kindle/blob/master/LICENSE#L15).
+Refer to the [MIT License](https://github.com/yangl1996/dskb2kindle/blob/master/LICENSE#L15:L21).
