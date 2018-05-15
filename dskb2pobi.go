@@ -12,6 +12,7 @@ import (
     "os"
     "io"
     "path/filepath"
+    "html/template"
 )
 
 type Section struct {
@@ -88,7 +89,10 @@ func main() {
     parseURL(dskbFrontPageURL, actionFunc, textActFunc)
     frontPageImageURL := frontPageResultsRetriever()
 
-    /* get and parse each article */
+    /* create article template */
+    articleTemplate := template.Must(template.New("article").Parse(mobiArticle))
+
+    /* get and parse each article, first go through each section */
     for sectionIdx, section := range tableOfContent {
         section.Path = filepath.Join(workspacePath, strconv.Itoa(sectionIdx))
         err = os.Mkdir(section.Path, os.ModePerm)
@@ -99,7 +103,7 @@ func main() {
             elementAct, textAct, articleResultsRetriever := articleParser()
             parseURL(articleURL, elementAct, textAct)
             article := articleResultsRetriever()
-            article.Path = filepath.Join(section.Path, strconv.Itoa(articleIdx))
+            article.Path = filepath.Join(section.Path, strings.Join([]string{strconv.Itoa(articleIdx), ".html"}, ""))
             for tokenIdx, token := range article.Text {
                 if token.Image != "" {
                     imagePath := filepath.Join(section.Path, strings.Join([]string{"img", strconv.Itoa(articleIdx), strconv.Itoa(tokenIdx), ".jpg"}, "_"))
@@ -118,10 +122,17 @@ func main() {
                     imageFile.Close()
                     resp.Body.Close()
                     token.Image = imagePath
-                } else if token.Para != "" {
                 }
             }
-            fmt.Println(article.H1)
+            htmlFile, err := os.Create(article.Path)
+            if err != nil {
+                log.Fatalln("Error creating article HTML file")
+            }
+            err = articleTemplate.Execute(htmlFile, article)
+            htmlFile.Close()
+            if err != nil {
+                log.Fatalln("Error applying template to article")
+            }
         }
     }
 

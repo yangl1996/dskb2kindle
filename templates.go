@@ -1,18 +1,28 @@
 package main
 
-var mobiArticle string = `<!DOCTYPE html>
+const mobiArticle string = `<!DOCTYPE html>
 <html lang="zh">
   <head>
     <meta charset="utf-8">
-    <title>{{}}</title>
+    <title>{{.H1}}</title>
   </head>
   <body>
-    <!-- page content -->
+  <h1>{{.H1}}</h1>
+  <h2>{{.H2}}</h2>
+  <h3>{{.H3}}</h3>
+  <h4>{{.H4}}</h4>
+  {{range .Text}}
+  {{if ne .Para ""}}
+  <p>{{.Para}}</p>
+  {{else if ne .Image ""}}
+  <img src="{{.Image}}">
+  {{end}}
+  {{end}}
   </body>
 </html>
 `
 
-var mobiContents string = `<html>
+const mobiContents string = `<html>
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
     <title>Table of Contents</title>
@@ -32,7 +42,7 @@ var mobiContents string = `<html>
   </body>
 </html>`
 
-var mobiNcx string = `<?xml version='1.0' encoding='utf-8'?>
+const mobiNcx string = `<?xml version='1.0' encoding='utf-8'?>
 <!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN" "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
 <ncx xmlns:mbp="http://mobipocket.com/ns/mbp" xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1" xml:lang="en-US">
   <head>
@@ -70,7 +80,7 @@ var mobiNcx string = `<?xml version='1.0' encoding='utf-8'?>
   </navMap>
 </ncx>`
 
-var mobiOpf string = `<?xml version='1.0' encoding='utf-8'?>
+const mobiOpf string = `<?xml version='1.0' encoding='utf-8'?>
 <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="{{doc_uuid}}">
   <metadata>
     <meta content="cover-image" name="cover"/>
