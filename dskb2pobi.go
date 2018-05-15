@@ -91,9 +91,7 @@ func main() {
         }
     }
     processTree(doc)
-    for _, p := range tableOfContent {
-        fmt.Println(p.Title)
-        fmt.Println(p.Articles)
-    }
+    log.Printf("Retrieved %d sections", len(tableOfContent))
+    fmt.Printf("%s", mobiContents)
 }
 
