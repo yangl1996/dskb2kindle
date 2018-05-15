@@ -58,7 +58,8 @@ type BookMetadata struct {
     Author string
     Masthead string
     Manifest Manifest
-
+    Date string
+    Cover string
 }
 
 func main() {
@@ -155,6 +156,7 @@ func main() {
     sectionTemplate := template.Must(template.New("section").Parse(mobiSection))
     contentsTemplate := template.Must(template.New("contents").Parse(mobiContents))
     ncxTemplate := template.Must(template.New("ncx").Parse(mobiNcx))
+    opfTemplate := template.Must(template.New("opf").Parse(mobiOpf))
 
     /* prepare manifest list */
     var manifest Manifest
@@ -163,6 +165,7 @@ func main() {
 
     /* get and parse each article, first go through each section */
     for sectionIdx, section := range tableOfContent {
+        tableOfContent[sectionIdx].Path = filepath.Join(workspacePath, strconv.Itoa(sectionIdx))
         section.Path = filepath.Join(workspacePath, strconv.Itoa(sectionIdx))
         err = os.Mkdir(section.Path, os.ModePerm)
         if err != nil {
@@ -200,6 +203,7 @@ func main() {
                     }
                     imageFile.Close()
                     resp.Body.Close()
+                    article.Text[tokenIdx].Image = imagePath
                     token.Image = imagePath
                     manifest.Images = append(manifest.Images, FileEntry{imagePath, "", "", getNextIdRef()})
                 }
@@ -230,10 +234,12 @@ func main() {
     /* prepare metadata */
     var metadata BookMetadata
     metadata.Manifest = manifest
-    metadata.Uuid = strings.Join([]string{"dushikuaibao.12345", hztime.Format("2006-01-02")}, "")
+    metadata.Uuid = strings.Join([]string{"dushikuaibao.12345", hztime.Format("2006-01-02")}, "-")
     metadata.Title = strings.Join([]string{"都市快报", hztime.Format("2006-01-02")}, " ")
     metadata.Author = "杭州日报报业集团"
     metadata.Masthead = mastheadPath
+    metadata.Date = hztime.Format("2006-01-02")
+    metadata.Cover = thumbnailPath
 
     ncxFile, err := os.Create(filepath.Join(workspacePath, "nav-contents.ncx"))
     if err != nil {
@@ -243,6 +249,16 @@ func main() {
     ncxFile.Close()
     if err != nil {
         log.Fatalln("Error applying template to NCX")
+    }
+
+    opfFile, err := os.Create(filepath.Join(workspacePath, "dskb2kindle.opf"))
+    if err != nil {
+        log.Fatalln("Error creating OPF file")
+    }
+    err = opfTemplate.Execute(opfFile, metadata)
+    opfFile.Close()
+    if err != nil {
+        log.Fatalln("Error applying template to OPF")
     }
 }
 

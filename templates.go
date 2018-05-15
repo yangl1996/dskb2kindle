@@ -80,17 +80,17 @@ const mobiNcx string = `<?xml version='1.0' encoding='utf-8'?>
 </ncx>`
 
 const mobiOpf string = `<?xml version='1.0' encoding='utf-8'?>
-<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="{{doc_uuid}}">
+<package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="{{.Uuid}}">
   <metadata>
     <meta content="cover-image" name="cover"/>
     <dc-metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
-      <dc:title>{{title}}</dc:title>
+      <dc:title>{{.Title}}</dc:title>
       <dc:language>en-gb</dc:language>
-      <dc:creator>{{author}}</dc:creator>
-      <dc:publisher>{{publisher}}</dc:publisher>
-      <dc:subject>{{subject}}</dc:subject>
-      <dc:date>{{date}}</dc:date>
-      <dc:description>{{description}}</dc:description>
+      <dc:creator>{{.Author}}</dc:creator>
+      <dc:publisher>dskb2kindle (Unofficial)</dc:publisher>
+      <dc:subject>News</dc:subject>
+      <dc:date>{{.Date}}</dc:date>
+      <dc:description>Dushikuaibao unofficially generated from the web version</dc:description>
     </dc-metadata>
 
     <x-metadata>
@@ -102,23 +102,30 @@ const mobiOpf string = `<?xml version='1.0' encoding='utf-8'?>
   <manifest>
     <item href="contents.html" media-type="application/xhtml+xml" id="contents"/>
     <item href="nav-contents.ncx" media-type="application/x-dtbncx+xml" id="nav-contents"/>
-    <item href="{{cover}}" media-type="{{cover_mimetype}}" id="cover-image"/>
-    <item href="{{masthead}}" media-type="image/png" id="masthead"/>
-    {{#manifest_items}}
-    <item href="{{href}}" media-type="{{media}}" id="{{idref}}"/>
-    {{/manifest_items}}
+    <item href="{{.Cover}}" media-type="image/jpg" id="cover-image"/>
+    <item href="{{.Masthead}}" media-type="image/png" id="masthead"/>
+    {{range .Manifest.Images}}
+    <item href="{{.Path}}" media-type="image/jpg" id="{{.Idref}}"/>
+    {{end}}
+    {{range .Manifest.Sections}}
+    <item href="{{.Self.Path}}" media-type="application/xhtml+xml" id="{{.Self.Idref}}"/>
+    {{range .Articles}}
+    <item href="{{.Path}}" media-type="application/xhtml+xml" id="{{.Idref}}"/>
+    {{end}}
+    {{end}}
   </manifest>
   <spine toc="nav-contents">
     <itemref idref="contents"/>
-    {{#spine_items}}
-    <itemref idref="{{idref}}"/>
-    {{/spine_items}}
+    {{range .Manifest.Sections}}
+    <itemref idref="{{.Self.Idref}}"/>
+    {{range .Articles}}
+    <itemref idref="{{.Idref}}"/>
+    {{end}}
+    {{end}}
   </spine>
   <guide>
     <reference href="contents.html" type="toc" title="Table of Contents"/>
-    {{#first_article}}
-    <reference href="{{href}}" type="text" title="Beginning"/>
-    {{/first_article}}
+    <reference href="{{(index (index .Manifest.Sections 0).Articles 0).Path}}" type="text" title="Beginning"/>
   </guide>
 </package>`
 
