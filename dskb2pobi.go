@@ -89,8 +89,27 @@ func main() {
     parseURL(dskbFrontPageURL, actionFunc, textActFunc)
     frontPageImageURL := frontPageResultsRetriever()
 
-    /* create article template */
+    /* download thumbnail of the frontpage */
+    thumbnailPath := filepath.Join(workspacePath, "thumbnail.jpg")
+    resp, err := http.Get(frontPageImageURL)
+    if err != nil {
+        log.Fatalln("Error downloading thumbnail")
+    }
+    thumbnailFile, err := os.Create(thumbnailPath)
+    if err != nil {
+        log.Fatalln("Error creating thumbnail file")
+    }
+    _, err = io.Copy(thumbnailFile, resp.Body)
+    if err != nil {
+        log.Fatalln("Error writing to thumbnail file")
+    }
+    thumbnailFile.Close()
+    resp.Body.Close()
+
+
+    /* create templates */
     articleTemplate := template.Must(template.New("article").Parse(mobiArticle))
+    sectionTemplate := template.Must(template.New("section").Parse(mobiSection))
 
     /* get and parse each article, first go through each section */
     for sectionIdx, section := range tableOfContent {
@@ -98,6 +117,15 @@ func main() {
         err = os.Mkdir(section.Path, os.ModePerm)
         if err != nil {
             log.Fatalf("Error creating directory %s\n", section.Path)
+        }
+        sectionFile, err := os.Create(filepath.Join(section.Path, "section.html"))
+        if err != nil {
+            log.Fatalln("Error creating section HTML file")
+        }
+        err = sectionTemplate.Execute(sectionFile, section)
+        sectionFile.Close()
+        if err != nil {
+            log.Fatalln("Error applying template to section")
         }
         for articleIdx, articleURL := range section.Articles {
             elementAct, textAct, articleResultsRetriever := articleParser()
@@ -135,8 +163,6 @@ func main() {
             }
         }
     }
-
-    fmt.Println(frontPageImageURL)
 }
 
 func parseURL(url string, act func(*html.Node), textAct func(*html.Node)) {

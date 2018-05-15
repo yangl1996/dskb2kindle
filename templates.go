@@ -123,18 +123,16 @@ const mobiOpf string = `<?xml version='1.0' encoding='utf-8'?>
   </guide>
 </package>`
 
-var mobiSection string = `<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+var mobiSection string = `<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xml:lang="zh">
   <head>
     <meta content="http://www.w3.org/1999/xhtml; charset=utf-8" http-equiv="Content-Type"/>
-    <title>{{title}}</title>
-    <meta content="kindlerb" name="author"/>
-    <meta content="kindlerb" name="description"/>
+    <title>{{.Title}}</title>
   </head>
   <body>
     <p>&nbsp;</p>
     <p>&nbsp;</p>
     <p>&nbsp;</p>
     <p>&nbsp;</p>
-    <h1>{{title}}</h1>
+    <h1>{{.Title}}</h1>
   </body>
 </html>`
