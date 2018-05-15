@@ -13,6 +13,7 @@ import (
     "io"
     "path/filepath"
     "text/template"
+    "os/exec"
 )
 
 type Section struct {
@@ -66,8 +67,13 @@ func main() {
     /* parse command line arguments */
     dateArg := flag.String("date", "today", "the date of the issue to be fetched, in format YYYY-MM-DD, MM-DD, or DD")
     workspaceArg := flag.String("workspace", "./dskb2kindle", "directory to store temporary files and results")
+    outputArg := flag.String("output", "dushikuaibao.pobi", "output filename")
     flag.Parse()
     log.Println("Process started")
+    _, err := exec.LookPath("kindlegen")
+    if err != nil {
+        log.Fatalln("Kindlegen is missing")
+    }
     workspacePath, err := filepath.Abs(*workspaceArg)
     if err != nil {
         log.Fatalln("Error parsing workspace path")
@@ -259,6 +265,15 @@ func main() {
     opfFile.Close()
     if err != nil {
         log.Fatalln("Error applying template to OPF")
+    }
+
+    /* call kindlegen */
+    cmd := exec.Command("kindlegen", "-o", *outputArg, filepath.Join(workspacePath, "dskb2kindle.opf"))
+    err = cmd.Run()
+    if err != nil {
+        log.Fatalln("Kindlegen returned with error")
+    } else {
+        log.Printf("Successfully generated at %s\n", filepath.Join(workspacePath, *outputArg))
     }
 }
 
