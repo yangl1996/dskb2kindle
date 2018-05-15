@@ -8,11 +8,13 @@ import (
     "golang.org/x/net/html"
     "strings"
     "flag"
+    "os"
 )
 
 type Section struct {
     Title string
     Articles []string
+    Path string
 }
 
 type Article struct {
@@ -21,6 +23,7 @@ type Article struct {
     H3 string
     H4 string
     Text []Token
+    Path string
 }
 
 type Token struct {
@@ -31,8 +34,16 @@ type Token struct {
 func main() {
     /* parse command line arguments */
     dateArg := flag.String("date", "today", "the date of the issue to be fetched, in format YYYY-MM-DD, MM-DD, or DD")
+    workspaceArg := flag.String("workspace", "./dskb2kindle", "directory to store temporary files and results")
     flag.Parse()
     log.Println("Process started")
+    if _, err := os.Stat(*workspaceArg); os.IsNotExist(err) {
+        log.Printf("%s does not exist, creating directory\n", *workspaceArg)
+        err = os.Mkdir(*workspaceArg, os.ModePerm)
+        if err != nil {
+            log.Fatalf("Error creating %s\n", *workspaceArg)
+        }
+    }
     hangzhou := time.FixedZone("Hangzhou Time", int((8 * time.Hour).Seconds()))
     var hztime time.Time
     if *dateArg == "today" {
@@ -69,6 +80,7 @@ func main() {
     parseURL(dskbFrontPageURL, actionFunc, textActFunc)
     frontPageImageURL := frontPageResultsRetriever()
 
+    /* get and parse each article */
     elementAct, textAct, articleResultsRetriever := articleParser()
     parseURL(tableOfContent[1].Articles[0], elementAct, textAct)
 
@@ -122,7 +134,7 @@ func tableOfContentParser(baseURL string) (func(*html.Node), func(*html.Node), f
                 if n.FirstChild.Data  == " 第A01版：都市快报" {
                     break
                 }
-                tableOfContent = append(tableOfContent, Section{strings.Trim(n.FirstChild.Data, " "), []string{}})
+                tableOfContent = append(tableOfContent, Section{strings.Trim(n.FirstChild.Data, " "), []string{}, ""})
                 parsingState = 1
             }
         case "a":
@@ -218,18 +230,18 @@ func articleParser() (func(*html.Node), func(*html.Node), func() Article) {
         if parsingState == 1 || parsingState == 2 {
             switch  n.Parent.Data {
             case "h1":
-                article.H1 = strings.Trim(n.Data, " \n\t")
+                article.H1 = strings.Trim(n.Data, " \n\t　")
             case "h2":
-                article.H2 = strings.Trim(n.Data, " \n\t")
+                article.H2 = strings.Trim(n.Data, " \n\t　")
             case "h3":
-                article.H3 = strings.Trim(n.Data, " \n\t")
+                article.H3 = strings.Trim(n.Data, " \n\t　")
             case "p":
-                article.H4 = strings.Trim(n.Data, " \n\t")
+                article.H4 = strings.Trim(n.Data, " \n\t　")
                 parsingState = 0
             }
         } else if parsingState == 3 {
             if n.Parent.Data == "p" {
-                stripped := strings.Trim(n.Data, " \n\t")
+                stripped := strings.Trim(n.Data, " \n\t　")
                 if stripped != "" {
                     article.Text = append(article.Text, Token{stripped, ""})
                 }
