@@ -7,8 +7,10 @@ import (
     "time"
     "golang.org/x/net/html"
     "strings"
+    "strconv"
     "flag"
     "os"
+    "path/filepath"
 )
 
 type Section struct {
@@ -37,12 +39,17 @@ func main() {
     workspaceArg := flag.String("workspace", "./dskb2kindle", "directory to store temporary files and results")
     flag.Parse()
     log.Println("Process started")
-    if _, err := os.Stat(*workspaceArg); os.IsNotExist(err) {
-        log.Printf("%s does not exist, creating directory\n", *workspaceArg)
-        err = os.Mkdir(*workspaceArg, os.ModePerm)
+    workspacePath, err := filepath.Abs(*workspaceArg)
+    if err != nil {
+        log.Fatalln("Error parsing workspace path")
+    }
+    if _, err := os.Stat(workspacePath); os.IsNotExist(err) {
+        err = os.Mkdir(workspacePath, os.ModePerm)
         if err != nil {
-            log.Fatalf("Error creating %s\n", *workspaceArg)
+            log.Fatalf("Error creating %s\n", workspacePath)
         }
+    } else {
+        log.Fatalf("%s already exists\n", workspacePath)
     }
     hangzhou := time.FixedZone("Hangzhou Time", int((8 * time.Hour).Seconds()))
     var hztime time.Time
@@ -81,12 +88,22 @@ func main() {
     frontPageImageURL := frontPageResultsRetriever()
 
     /* get and parse each article */
-    elementAct, textAct, articleResultsRetriever := articleParser()
-    parseURL(tableOfContent[1].Articles[0], elementAct, textAct)
+    for sectionIdx, section := range tableOfContent {
+        section.Path = filepath.Join(workspacePath, strconv.Itoa(sectionIdx))
+        err = os.Mkdir(section.Path, os.ModePerm)
+        if err != nil {
+            log.Fatalf("Error creating directory %s\n", section.Path)
+        }
+        for articleIdx, articleURL := range section.Articles {
+            elementAct, textAct, articleResultsRetriever := articleParser()
+            parseURL(articleURL, elementAct, textAct)
+            article := articleResultsRetriever()
+            article.Path = filepath.Join(section.Path, strconv.Itoa(articleIdx))
+            fmt.Println(article.H1)
+        }
+    }
 
-    fmt.Println(articleResultsRetriever())
     fmt.Println(frontPageImageURL)
-    fmt.Println(tableOfContent)
 }
 
 func parseURL(url string, act func(*html.Node), textAct func(*html.Node)) {
