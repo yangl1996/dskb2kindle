@@ -16,9 +16,9 @@ type Section struct {
 }
 
 func main() {
-    log.Println("Process started")
     dateArg := flag.String("date", "today", "the date of the issue to be fetched, in format YYYY-MM-DD, MM-DD, or DD")
     flag.Parse()
+    log.Println("Process started")
     hangzhou := time.FixedZone("Hangzhou Time", int((8 * time.Hour).Seconds()))
     var hztime time.Time
     if *dateArg == "today" {
