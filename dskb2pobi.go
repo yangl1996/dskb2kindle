@@ -47,70 +47,14 @@ func main() {
     dskbBaseURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/", hztime.Format("2006/01/02"))
 
     /* get and parse table of content */
-    var tableOfContent []Section
-    parsingState := 0
-    var processTree func(*html.Node)
-    processTree = func(n *html.Node) {
-        switch n.Data {
-        case "title":
-            if n.FirstChild.Data == "404页面" {
-                log.Fatalln("HTTP 404, this issue is not available")
-            }
-        case "div":
-            if len(n.Attr) == 0 {
-                break
-            }
-            if n.Attr[0].Key == "class" && n.Attr[0].Val == "title" {
-                if n.FirstChild.Data  == " 第A01版：都市快报" {
-                    break
-                }
-                tableOfContent = append(tableOfContent, Section{strings.Trim(n.FirstChild.Data, " "), []string{}})
-                parsingState = 1
-            }
-        case "a":
-            if parsingState == 0 {
-                break
-            }
-            if len(n.Attr) == 0 {
-                break
-            }
-            tableOfContent[len(tableOfContent)-1].Articles = append(tableOfContent[len(tableOfContent)-1].Articles, strings.Join([]string{dskbBaseURL, n.Attr[0].Val}, ""))
-        }
-    }
-    parseURL(dskbURL, processTree)
-    log.Printf("Found %d sections", len(tableOfContent))
+    actionFunc, tableOfContentResultsRetriever := tableOfContentParser(dskbBaseURL)
+    parseURL(dskbURL, actionFunc)
+    tableOfContent := tableOfContentResultsRetriever()
 
     /* get and parse the thumbnail of the frontpage */
-    var frontPageImageURL string
-    parsingState = 0
-    var processFrontPage func(*html.Node)
-    processFrontPage = func(n *html.Node) {
-        switch n.Data {
-        case "title":
-            if n.FirstChild.Data == "404页面" {
-                log.Fatalln("HTTP 404, error retrieving front page")
-            }
-        case "div":
-            for _, a := range n.Attr {
-                if a.Key == "class" && a.Val == "section page1" {
-                    parsingState = 1
-                }
-            }
-        case "img":
-            if parsingState == 1 {
-                for _, a := range n.Attr {
-                    if a.Key == "data-src" {
-                        frontPageImageURL = a.Val
-                        parsingState = 2
-                    }
-                }
-            }
-        }
-    }
-    parseURL(dskbFrontPageURL, processFrontPage)
-    if parsingState != 2 {
-        log.Fatalln("Error parsing front page thumbnail URL")
-    }
+    actionFunc, frontPageResultsRetriever := frontPageParser() 
+    parseURL(dskbFrontPageURL, actionFunc)
+    frontPageImageURL := frontPageResultsRetriever()
 
     fmt.Println(frontPageImageURL)
     fmt.Println(tableOfContent)
@@ -140,4 +84,76 @@ func parseURL(url string, act func(*html.Node)) {
         }
     }
     processHTML(doc, act)
+}
+
+func tableOfContentParser(baseURL string) (func(*html.Node), func() []Section) {
+    var tableOfContent []Section
+    parsingState := 0
+    processTree := func(n *html.Node) {
+        switch n.Data {
+        case "title":
+            if n.FirstChild.Data == "404页面" {
+                log.Fatalln("HTTP 404, this issue is not available")
+            }
+        case "div":
+            if len(n.Attr) == 0 {
+                break
+            }
+            if n.Attr[0].Key == "class" && n.Attr[0].Val == "title" {
+                if n.FirstChild.Data  == " 第A01版：都市快报" {
+                    break
+                }
+                tableOfContent = append(tableOfContent, Section{strings.Trim(n.FirstChild.Data, " "), []string{}})
+                parsingState = 1
+            }
+        case "a":
+            if parsingState == 0 {
+                break
+            }
+            if len(n.Attr) == 0 {
+                break
+            }
+            tableOfContent[len(tableOfContent)-1].Articles = append(tableOfContent[len(tableOfContent)-1].Articles, strings.Join([]string{baseURL, n.Attr[0].Val}, ""))
+        }
+    }
+    getResults := func() []Section {
+        log.Printf("Found %d sections", len(tableOfContent))
+        return tableOfContent
+    }
+    return processTree, getResults
+}
+
+func frontPageParser() (func(*html.Node), func() string) {
+    var frontPageImageURL string
+    parsingState := 0
+    processFrontPage := func(n *html.Node) {
+        switch n.Data {
+        case "title":
+            if n.FirstChild.Data == "404页面" {
+                log.Fatalln("HTTP 404, error retrieving front page")
+            }
+        case "div":
+            for _, a := range n.Attr {
+                if a.Key == "class" && a.Val == "section page1" {
+                    parsingState = 1
+                }
+            }
+        case "img":
+            if parsingState == 1 {
+                for _, a := range n.Attr {
+                    if a.Key == "data-src" {
+                        frontPageImageURL = a.Val
+                        parsingState = 2
+                    }
+                }
+            }
+        }
+    }
+    getResults := func() string {
+        if parsingState != 2 {
+            log.Fatalln("Error parsing front page thumbnail URL")
+        }
+        return frontPageImageURL
+    }
+    return processFrontPage, getResults
 }
