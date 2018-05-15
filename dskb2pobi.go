@@ -10,6 +10,7 @@ import (
     "strconv"
     "flag"
     "os"
+    "io"
     "path/filepath"
 )
 
@@ -99,6 +100,27 @@ func main() {
             parseURL(articleURL, elementAct, textAct)
             article := articleResultsRetriever()
             article.Path = filepath.Join(section.Path, strconv.Itoa(articleIdx))
+            for tokenIdx, token := range article.Text {
+                if token.Image != "" {
+                    imagePath := filepath.Join(section.Path, strings.Join([]string{"img", strconv.Itoa(articleIdx), strconv.Itoa(tokenIdx), ".jpg"}, "_"))
+                    resp, err := http.Get(token.Image)
+                    if err != nil {
+                        log.Fatalln("Error downloading image")
+                    }
+                    imageFile, err := os.Create(imagePath)
+                    if err != nil {
+                        log.Fatalln("Error creating image file")
+                    }
+                    _, err = io.Copy(imageFile, resp.Body)
+                    if err != nil {
+                        log.Fatalln("Error writing to image file")
+                    }
+                    imageFile.Close()
+                    resp.Body.Close()
+                    token.Image = imagePath
+                } else if token.Para != "" {
+                }
+            }
             fmt.Println(article.H1)
         }
     }
