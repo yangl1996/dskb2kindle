@@ -22,23 +22,24 @@ const mobiArticle string = `<!DOCTYPE html>
 </html>
 `
 
-const mobiContents string = `<html>
+const mobiContents string = `<!DOCTYPE html>
+<html lang="zh">
   <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type"/>
-    <title>Table of Contents</title>
+    <title>目录</title>
   </head>
   <body>
-    <h1>Contents</h1>
-    {{#sections}}
-    <h4>{{{title}}}</h4>
+    <h1>本期内容</h1>
+    {{range .Sections}}
+    <h4>{{.Self.Title}}</h4>
     <ul>
-      {{#articles}}
+      {{range .Articles}}
       <li>
-        <a href="{{file}}">{{{title}}}</a>
+        <a href="{{.Path}}">{{.Title}}</a>
       </li>
-      {{/articles}}
+      {{end}}
     </ul>
-    {{/sections}}
+    {{end}}
   </body>
 </html>`
 

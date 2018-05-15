@@ -35,6 +35,21 @@ type Token struct {
     Image string
 }
 
+type FileEntry struct {
+    Path string
+    Title string
+}
+
+type Manifest struct {
+    Sections []ManifestSection
+    Images []FileEntry
+}
+
+type ManifestSection struct {
+    Self FileEntry
+    Articles []FileEntry
+}
+
 func main() {
     /* parse command line arguments */
     dateArg := flag.String("date", "today", "the date of the issue to be fetched, in format YYYY-MM-DD, MM-DD, or DD")
@@ -110,6 +125,10 @@ func main() {
     /* create templates */
     articleTemplate := template.Must(template.New("article").Parse(mobiArticle))
     sectionTemplate := template.Must(template.New("section").Parse(mobiSection))
+    contentsTemplate := template.Must(template.New("contents").Parse(mobiContents))
+
+    /* prepare manifest list */
+    var manifest Manifest
 
     /* get and parse each article, first go through each section */
     for sectionIdx, section := range tableOfContent {
@@ -127,6 +146,7 @@ func main() {
         if err != nil {
             log.Fatalln("Error applying template to section")
         }
+        manifest.Sections = append(manifest.Sections, ManifestSection{FileEntry{filepath.Join(section.Path, "section.html"), section.Title}, []FileEntry{}})
         for articleIdx, articleURL := range section.Articles {
             elementAct, textAct, articleResultsRetriever := articleParser()
             parseURL(articleURL, elementAct, textAct)
@@ -150,6 +170,7 @@ func main() {
                     imageFile.Close()
                     resp.Body.Close()
                     token.Image = imagePath
+                    manifest.Images = append(manifest.Images, FileEntry{imagePath, ""})
                 }
             }
             htmlFile, err := os.Create(article.Path)
@@ -161,7 +182,17 @@ func main() {
             if err != nil {
                 log.Fatalln("Error applying template to article")
             }
+            manifest.Sections[len(manifest.Sections)-1].Articles = append(manifest.Sections[len(manifest.Sections)-1].Articles, FileEntry{article.Path, article.H1})
         }
+    }
+    contentsFile, err := os.Create(filepath.Join(workspacePath, "contents.html"))
+    if err != nil {
+        log.Fatalln("Error creating contents file")
+    }
+    err = contentsTemplate.Execute(contentsFile, manifest)
+    contentsFile.Close()
+    if err != nil {
+        log.Fatalln("Error applying template to table of contents")
     }
 }
 
