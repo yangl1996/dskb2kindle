@@ -42,10 +42,7 @@ func main() {
     dskbURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/article_list_%s.html", hztime.Format("2006/01/02"), hztime.Format("20060102"))
     dskbFrontPageURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/page_list_%s.html", hztime.Format("2006/01/02"), hztime.Format("20060102"))
     dskbBaseURL := fmt.Sprintf("http://mdaily.hangzhou.com.cn/dskb/%s/", hztime.Format("2006/01/02"))
-    resp, err := http.Get(dskbURL)
-    if err != nil {
-        log.Fatalln("Error communicating with Dushikuaibao server")
-    }
+    resp := getURL(dskbURL)
     doc, err := html.Parse(resp.Body)
     if err != nil {
         resp.Body.Close()
@@ -57,47 +54,36 @@ func main() {
     parsingState := 0
     var processTree func(*html.Node)
     processTree = func(n *html.Node) {
-        switch n.Type {
-        case html.ErrorNode:
-            log.Fatalln("Error parsing DOM node")
-        case html.ElementNode:
-            switch n.Data {
-            case "title":
-                if n.FirstChild.Data == "404页面" {
-                    log.Fatalln("HTTP 404, this issue is not available")
-                }
-            case "div":
-                if len(n.Attr) == 0 {
-                    break
-                }
-                if n.Attr[0].Key == "class" && n.Attr[0].Val == "title" {
-                    if n.FirstChild.Data  == " 第A01版：都市快报" {
-                        break
-                    }
-                    tableOfContent = append(tableOfContent, Section{strings.Trim(n.FirstChild.Data, " "), []string{}})
-                    parsingState = 1
-                }
-            case "a":
-                if parsingState == 0 {
-                    break
-                }
-                if len(n.Attr) == 0 {
-                    break
-                }
-                tableOfContent[len(tableOfContent)-1].Articles = append(tableOfContent[len(tableOfContent)-1].Articles, strings.Join([]string{dskbBaseURL, n.Attr[0].Val}, ""))
+        switch n.Data {
+        case "title":
+            if n.FirstChild.Data == "404页面" {
+                log.Fatalln("HTTP 404, this issue is not available")
             }
-        }
-        for c := n.FirstChild; c != nil; c = c.NextSibling {
-            processTree(c)
+        case "div":
+            if len(n.Attr) == 0 {
+                break
+            }
+            if n.Attr[0].Key == "class" && n.Attr[0].Val == "title" {
+                if n.FirstChild.Data  == " 第A01版：都市快报" {
+                    break
+                }
+                tableOfContent = append(tableOfContent, Section{strings.Trim(n.FirstChild.Data, " "), []string{}})
+                parsingState = 1
+            }
+        case "a":
+            if parsingState == 0 {
+                break
+            }
+            if len(n.Attr) == 0 {
+                break
+            }
+            tableOfContent[len(tableOfContent)-1].Articles = append(tableOfContent[len(tableOfContent)-1].Articles, strings.Join([]string{dskbBaseURL, n.Attr[0].Val}, ""))
         }
     }
-    processTree(doc)
+    processHTML(doc, processTree)
     log.Printf("Found %d sections", len(tableOfContent))
 
-    resp, err = http.Get(dskbFrontPageURL)
-    if err != nil {
-        log.Fatalln("Error communicating with Dushikuaibao server")
-    }
+    resp = getURL(dskbFrontPageURL)
     doc, err = html.Parse(resp.Body)
     if err != nil {
         resp.Body.Close()
@@ -108,37 +94,29 @@ func main() {
     parsingState = 0
     var processFrontPage func(*html.Node)
     processFrontPage = func(n *html.Node) {
-        switch n.Type {
-        case html.ErrorNode:
-            log.Fatalln("Error parsing DOM node")
-        case html.ElementNode:
-            switch n.Data {
-            case "title":
-                if n.FirstChild.Data == "404页面" {
-                    log.Fatalln("HTTP 404, error retrieving front page")
+        switch n.Data {
+        case "title":
+            if n.FirstChild.Data == "404页面" {
+                log.Fatalln("HTTP 404, error retrieving front page")
+            }
+        case "div":
+            for _, a := range n.Attr {
+                if a.Key == "class" && a.Val == "section page1" {
+                    parsingState = 1
                 }
-            case "div":
+            }
+        case "img":
+            if parsingState == 1 {
                 for _, a := range n.Attr {
-                    if a.Key == "class" && a.Val == "section page1" {
-                        parsingState = 1
-                    }
-                }
-            case "img":
-                if parsingState == 1 {
-                    for _, a := range n.Attr {
-                        if a.Key == "data-src" {
-                            frontPageImageURL = a.Val
-                            parsingState = 2
-                        }
+                    if a.Key == "data-src" {
+                        frontPageImageURL = a.Val
+                        parsingState = 2
                     }
                 }
             }
         }
-        for c := n.FirstChild; c != nil; c = c.NextSibling {
-            processFrontPage(c)
-        }
     }
-    processFrontPage(doc)
+    processHTML(doc, processFrontPage)
     if parsingState != 2 {
         log.Fatalln("Error parsing front page thumbnail URL")
     }
@@ -146,3 +124,23 @@ func main() {
     fmt.Println(tableOfContent)
 }
 
+func getURL (url string) *http.Response {
+    resp, err := http.Get(url)
+    if err != nil {
+        log.Fatalln("Error communicating with Dushikuaibao server")
+        return nil
+    }
+    return resp
+}
+
+func processHTML (n *html.Node, act func(*html.Node)) {
+    switch n.Type {
+    case html.ErrorNode:
+        log.Fatalln("Error parsing DOM node")
+    case html.ElementNode:
+        act(n)
+    }
+    for c := n.FirstChild; c != nil; c = c.NextSibling {
+        processHTML(c, act)
+    }
+}
